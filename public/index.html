@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cargo Emissions Tracker</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        #map {
+            height: 500px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .card {
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background-color: #fff;
+            border-bottom: 2px solid #e9ecef;
+            font-weight: 600;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .stat-card.success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        
+        .stat-card.warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .route-line-shortest {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        .route-line-efficient {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .login-container {
+            max-width: 400px;
+            margin: 100px auto;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .history-item {
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+            margin-bottom: 15px;
+            background: #fff;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        
+        .navbar-brand {
+            font-weight: bold;
+            color: #2c3e50 !important;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #653e91 100%);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-leaf text-success me-2"></i>
+                Cargo Emissions Tracker
+            </a>
+            <div class="navbar-nav ms-auto" id="navUser">
+                <!-- Will be populated by JS -->
+            </div>
+        </div>
+    </nav>
+
+    <!-- Login/Register Container -->
+    <div id="authContainer" class="container login-container">
+        <div class="card">
+            <div class="card-body">
+                <h3 class="text-center mb-4" id="authTitle">Login</h3>
+                
+                <div id="authError" class="alert alert-danger hidden"></div>
+                
+                <form id="authForm">
+                    <div class="mb-3" id="nameField" style="display: none;">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" class="form-control" id="fullName" placeholder="Enter your name">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" placeholder="Enter your email" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-control" id="password" placeholder="Enter your password" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100" id="authButton">
+                        Login
+                    </button>
+                </form>
+                
+                <hr class="my-4">
+                
+                <p class="text-center mb-0">
+                    <span id="authSwitchText">Don't have an account?</span>
+                    <a href="#" id="authSwitch" class="text-decoration-none">Register</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application Container -->
+    <div id="appContainer" class="container mt-4 hidden">
+        <div class="row">
+            <!-- Left Panel - Route Calculation -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-route me-2"></i>Calculate Route
+                    </div>
+                    <div class="card-body">
+                        <form id="routeForm">
+                            <div class="mb-3">
+                                <label class="form-label">Origin</label>
+                                <input type="text" class="form-control" id="origin" placeholder="e.g., Mumbai, India" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Destination</label>
+                                <input type="text" class="form-control" id="destination" placeholder="e.g., London, UK" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Cargo Weight (kg)</label>
+                                <input type="number" class="form-control" id="weight" placeholder="e.g., 1000" min="1" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Transport Mode</label>
+                                <select class="form-select" id="transportMode">
+                                    <option value="land">Land (Truck)</option>
+                                    <option value="sea">Sea (Ship)</option>
+                                    <option value="air">Air (Cargo Plane)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-calculator me-2"></i>Compare Routes
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Results Card -->
+                <div id="resultsCard" class="card hidden">
+                    <div class="card-header">
+                        <i class="fas fa-chart-bar me-2"></i>Results
+                    </div>
+                    <div class="card-body" id="resultsBody">
+                        <!-- Results will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel - Map and History -->
+            <div class="col-lg-8">
+                <!-- Map -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-map me-2"></i>Route Map</span>
+                        <div>
+                            <span class="badge bg-danger me-2"><i class="fas fa-route me-1"></i>Shortest</span>
+                            <span class="badge bg-success"><i class="fas fa-leaf me-1"></i>Efficient</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="map"></div>
+                    </div>
+                </div>
+
+                <!-- Search History -->
+                <div class="card mt-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-history me-2"></i>Search History</span>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="loadSearchHistory()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="card-body" id="historyBody">
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-history fa-3x mb-3"></i>
+                            <p>No search history yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+</html>
