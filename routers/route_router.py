@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.responses import JSONResponse
-from typing import Optional
 
 from models.route_model import (
     RouteRequest,
@@ -19,7 +18,7 @@ from modules.route_calculator import (
     calculate_shortest_route,
     get_available_transport_modes,
 )
-from entity import search_history_db
+from modules.entity import search_history_db
 from modules.utils import get_timestamp
 
 route_router = APIRouter()

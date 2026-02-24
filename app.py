@@ -1,11 +1,9 @@
-import os
-
 from dotenv import load_dotenv
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from entity import *
+from modules.entity import *
 from modules.logger import get_logger
 from routers import *
 

@@ -4,8 +4,8 @@ from typing import Optional
 
 from modules.jwt_util import require_token
 from modules.logger import get_logger
-from entity import search_history_db
-from models.route_model import SearchHistoryFilter, PaginatedSearchHistory
+from modules.entity import search_history_db
+from models.route_model import PaginatedSearchHistory
 
 search_history_router = APIRouter()
 logger = get_logger("SEARCH_HISTORY_ROUTER")

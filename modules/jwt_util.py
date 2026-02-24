@@ -6,7 +6,7 @@ import jwt
 from dotenv import load_dotenv
 from fastapi import HTTPException, Header
 
-from entity import user_db
+from modules.entity import user_db
 from modules.logger import get_logger
 
 load_dotenv()
