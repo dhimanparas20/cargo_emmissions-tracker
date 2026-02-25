@@ -259,7 +259,7 @@ async def get_search_stats(user=Depends(require_token)):
         return JSONResponse(
             {
                 "total_searches": total_searches,
-                "total_emissions_kg": round(total_emissions, 2),
+                "total_emissions_kg_co2": round(total_emissions, 2),
                 "avg_distance_km": round(avg_distance, 2),
                 "most_used_mode": most_used_mode,
                 "most_common_route": most_common_route,
