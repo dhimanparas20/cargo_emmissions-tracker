@@ -90,13 +90,17 @@ async def register(user: user_model.CreateUserInput):
         created_user = user_model.CreateUser(**data).model_dump()
 
         # Insert into database
-        doc = user_db.insert(created_user)
+        user_id = user_db.insert(created_user)
+        created_user["id"] = user_id
 
         logger.info(f"New user registered: {user.email}")
 
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
-            content={"msg": "success", "user": user_model.ReadUser(**doc).model_dump()},
+            content={
+                "msg": "success",
+                "user": user_model.ReadUser(**created_user).model_dump(),
+            },
         )
 
     except HTTPException:

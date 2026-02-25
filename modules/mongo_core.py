@@ -12,6 +12,7 @@ Install:
     pip install pymongo passlib
     uv add pymongo passlib
 """
+
 import logging
 import os
 import random
@@ -32,7 +33,7 @@ from pymongo.database import Database
 from pymongo.errors import (
     ConnectionFailure,
     DuplicateKeyError,
-    ServerSelectionTimeoutError
+    ServerSelectionTimeoutError,
 )
 
 # Configure logging
@@ -67,7 +68,9 @@ def retry_on_failure(max_retries: int = 3, delay: float = 1.0):
                     if attempt == max_retries - 1:
                         logger.error(f"Max retries reached for {func.__name__}: {e}")
                         raise
-                    logger.warning(f"Retry {attempt + 1}/{max_retries} for {func.__name__}: {e}")
+                    logger.warning(
+                        f"Retry {attempt + 1}/{max_retries} for {func.__name__}: {e}"
+                    )
                     time.sleep(delay * (attempt + 1))
             return None
 
@@ -96,14 +99,14 @@ class MongoDB:
     """
 
     def __init__(
-            self,
-            db_name: str,
-            collection_name: str,
-            connection_str: str = DEFAULT_CONNECTION_STRING,
-            max_pool_size: int = DEFAULT_MAX_POOL_SIZE,
-            min_pool_size: int = DEFAULT_MIN_POOL_SIZE,
-            timeout_ms: int = DEFAULT_TIMEOUT_MS,
-            **kwargs
+        self,
+        db_name: str,
+        collection_name: str,
+        connection_str: str = DEFAULT_CONNECTION_STRING,
+        max_pool_size: int = DEFAULT_MAX_POOL_SIZE,
+        min_pool_size: int = DEFAULT_MIN_POOL_SIZE,
+        timeout_ms: int = DEFAULT_TIMEOUT_MS,
+        **kwargs,
     ) -> None:
         """
         Initialize MongoDB client with connection pooling and timeout settings.
@@ -131,12 +134,14 @@ class MongoDB:
                 socketTimeoutMS=timeout_ms,
                 retryWrites=True,
                 retryReads=True,
-                **kwargs
+                **kwargs,
             )
 
             # Test connection
-            self.client.admin.command('ping')
-            logger.info(f"Successfully connected to MongoDB: {db_name}.{collection_name}")
+            self.client.admin.command("ping")
+            logger.info(
+                f"Successfully connected to MongoDB: {db_name}.{collection_name}"
+            )
 
             self.db: Database = self.client[db_name]
             self.collection: Collection = self.db[collection_name]
@@ -144,12 +149,15 @@ class MongoDB:
 
         except (ConnectionFailure, ServerSelectionTimeoutError) as e:
             logger.error(f"Failed to connect to MongoDB: {e}")
-            raise
+            logger.error(
+                "Please ensure MongoDB is running. You can start it with: docker compose up -d"
+            )
+            raise SystemExit(1)
         except Exception as e:
             logger.error(f"Unexpected error during MongoDB initialization: {e}")
-            raise
+            raise SystemExit(1)
 
-    def __enter__(self) -> 'MongoDB':
+    def __enter__(self) -> "MongoDB":
         """
         Context manager entry.
 
@@ -177,7 +185,7 @@ class MongoDB:
             bool: True if connection is healthy, False otherwise.
         """
         try:
-            self.client.admin.command('ping')
+            self.client.admin.command("ping")
             return True
         except Exception as e:
             logger.error(f"Health check failed: {e}")
@@ -226,7 +234,7 @@ class MongoDB:
             str: Random string.
         """
         characters = string.ascii_letters + string.digits
-        return ''.join(random.choices(characters, k=length))
+        return "".join(random.choices(characters, k=length))
 
     @staticmethod
     def gen_uuid() -> str:
@@ -315,10 +323,7 @@ class MongoDB:
 
     @retry_on_failure(max_retries=3)
     def insert(
-            self,
-            data: Dict[str, Any],
-            session: Optional[ClientSession] = None,
-            **kwargs
+        self, data: Dict[str, Any], session: Optional[ClientSession] = None, **kwargs
     ) -> str:
         """
         Insert a single document with retry logic.
@@ -346,10 +351,10 @@ class MongoDB:
             raise
 
     def insert_unique(
-            self,
-            filter: Dict[str, Any],
-            data: Dict[str, Any],
-            session: Optional[ClientSession] = None
+        self,
+        filter: Dict[str, Any],
+        data: Dict[str, Any],
+        session: Optional[ClientSession] = None,
     ) -> bool:
         """
         Atomically insert a document only if no document matches the filter.
@@ -369,10 +374,7 @@ class MongoDB:
         try:
             # Atomic upsert with $setOnInsert to avoid race condition
             result = self.collection.update_one(
-                filter,
-                {"$setOnInsert": data},
-                upsert=True,
-                session=session
+                filter, {"$setOnInsert": data}, upsert=True, session=session
             )
 
             if result.upserted_id:
@@ -387,11 +389,11 @@ class MongoDB:
 
     @retry_on_failure(max_retries=3)
     def insert_many(
-            self,
-            data: List[Dict[str, Any]],
-            ordered: bool = False,
-            session: Optional[ClientSession] = None,
-            **kwargs
+        self,
+        data: List[Dict[str, Any]],
+        ordered: bool = False,
+        session: Optional[ClientSession] = None,
+        **kwargs,
     ) -> List[str]:
         """
         Insert multiple documents with retry logic.
@@ -414,10 +416,7 @@ class MongoDB:
                 return []
 
             result = self.collection.insert_many(
-                data,
-                ordered=ordered,
-                session=session,
-                **kwargs
+                data, ordered=ordered, session=session, **kwargs
             )
             logger.info(f"Inserted {len(result.inserted_ids)} documents")
             return [str(_id) for _id in result.inserted_ids]
@@ -426,10 +425,10 @@ class MongoDB:
             raise
 
     def bulk_write(
-            self,
-            operations: List[Any],
-            ordered: bool = False,
-            session: Optional[ClientSession] = None
+        self,
+        operations: List[Any],
+        ordered: bool = False,
+        session: Optional[ClientSession] = None,
     ) -> Dict[str, int]:
         """
         Perform bulk write operations for better performance.
@@ -452,12 +451,14 @@ class MongoDB:
             >>> db.bulk_write(ops)
         """
         try:
-            result = self.collection.bulk_write(operations, ordered=ordered, session=session)
+            result = self.collection.bulk_write(
+                operations, ordered=ordered, session=session
+            )
             stats = {
                 "inserted": result.inserted_count,
                 "modified": result.modified_count,
                 "deleted": result.deleted_count,
-                "upserted": result.upserted_count
+                "upserted": result.upserted_count,
             }
             logger.info(f"Bulk write completed: {stats}")
             return stats
@@ -467,15 +468,15 @@ class MongoDB:
 
     @retry_on_failure(max_retries=3)
     def filter(
-            self,
-            filter: Optional[Dict[str, Any]] = None,
-            show_id: bool = False,
-            projection: Optional[Dict[str, Any]] = None,
-            sort: Optional[List[Tuple[str, int]]] = None,
-            limit: int = 0,
-            skip: int = 0,
-            session: Optional[ClientSession] = None,
-            **kwargs
+        self,
+        filter: Optional[Dict[str, Any]] = None,
+        show_id: bool = False,
+        projection: Optional[Dict[str, Any]] = None,
+        sort: Optional[List[Tuple[str, int]]] = None,
+        limit: int = 0,
+        skip: int = 0,
+        session: Optional[ClientSession] = None,
+        **kwargs,
     ) -> List[Dict[str, Any]]:
         """
         Filter documents with projection, sorting, and pagination support.
@@ -506,10 +507,7 @@ class MongoDB:
                 projection = None if show_id else {"_id": 0}
 
             cursor = self.collection.find(
-                filter or {},
-                projection,
-                session=session,
-                **kwargs
+                filter or {}, projection, session=session, **kwargs
             )
 
             if sort:
@@ -534,12 +532,12 @@ class MongoDB:
             raise
 
     def paginate(
-            self,
-            filter: Optional[Dict[str, Any]] = None,
-            page: int = 1,
-            page_size: int = 10,
-            sort: Optional[List[Tuple[str, int]]] = None,
-            **kwargs
+        self,
+        filter: Optional[Dict[str, Any]] = None,
+        page: int = 1,
+        page_size: int = 10,
+        sort: Optional[List[Tuple[str, int]]] = None,
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         Paginate query results for large datasets.
@@ -572,7 +570,7 @@ class MongoDB:
                 limit=page_size,
                 skip=skip,
                 show_id=True,
-                **kwargs
+                **kwargs,
             )
 
             return {
@@ -580,7 +578,7 @@ class MongoDB:
                 "page": page,
                 "page_size": page_size,
                 "total": total,
-                "total_pages": total_pages
+                "total_pages": total_pages,
             }
         except Exception as e:
             logger.error(f"Error in pagination: {e}")
@@ -588,12 +586,12 @@ class MongoDB:
 
     @retry_on_failure(max_retries=3)
     def get(
-            self,
-            filter: Optional[Dict[str, Any]] = None,
-            show_id: bool = True,
-            projection: Optional[Dict[str, Any]] = None,
-            session: Optional[ClientSession] = None,
-            **kwargs
+        self,
+        filter: Optional[Dict[str, Any]] = None,
+        show_id: bool = True,
+        projection: Optional[Dict[str, Any]] = None,
+        session: Optional[ClientSession] = None,
+        **kwargs,
     ) -> Optional[Dict[str, Any]]:
         """
         Get a single document matching the filter.
@@ -616,10 +614,7 @@ class MongoDB:
                 projection = None if show_id else {"_id": 0}
 
             doc = self.collection.find_one(
-                filter or {},
-                projection,
-                session=session,
-                **kwargs
+                filter or {}, projection, session=session, **kwargs
             )
 
             if doc and show_id and "_id" in doc:
@@ -633,10 +628,10 @@ class MongoDB:
             raise
 
     def get_by_id(
-            self,
-            _id: Union[str, ObjectId],
-            show_id: bool = True,
-            session: Optional[ClientSession] = None
+        self,
+        _id: Union[str, ObjectId],
+        show_id: bool = True,
+        session: Optional[ClientSession] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Get a document by its ObjectId.
@@ -673,10 +668,10 @@ class MongoDB:
 
     @retry_on_failure(max_retries=3)
     def count(
-            self,
-            filter: Optional[Dict[str, Any]] = None,
-            session: Optional[ClientSession] = None,
-            **kwargs
+        self,
+        filter: Optional[Dict[str, Any]] = None,
+        session: Optional[ClientSession] = None,
+        **kwargs,
     ) -> int:
         """
         Count documents matching a filter.
@@ -691,9 +686,7 @@ class MongoDB:
         """
         try:
             count = self.collection.count_documents(
-                filter or {},
-                session=session,
-                **kwargs
+                filter or {}, session=session, **kwargs
             )
             return count
         except Exception as e:
@@ -701,9 +694,7 @@ class MongoDB:
             raise
 
     def exists(
-            self,
-            filter: Dict[str, Any],
-            session: Optional[ClientSession] = None
+        self, filter: Dict[str, Any], session: Optional[ClientSession] = None
     ) -> bool:
         """
         Check if any document matches the filter.
@@ -717,20 +708,23 @@ class MongoDB:
             bool: True if at least one document exists, False otherwise.
         """
         try:
-            return self.collection.find_one(filter, {"_id": 1}, session=session) is not None
+            return (
+                self.collection.find_one(filter, {"_id": 1}, session=session)
+                is not None
+            )
         except Exception as e:
             logger.error(f"Error checking existence: {e}")
             raise
 
     @retry_on_failure(max_retries=3)
     def update(
-            self,
-            filter: Dict[str, Any],
-            update_data: Dict[str, Any],
-            upsert: bool = False,
-            array_filters: Optional[List[Dict]] = None,
-            session: Optional[ClientSession] = None,
-            **kwargs
+        self,
+        filter: Dict[str, Any],
+        update_data: Dict[str, Any],
+        upsert: bool = False,
+        array_filters: Optional[List[Dict]] = None,
+        session: Optional[ClientSession] = None,
+        **kwargs,
     ) -> int:
         """
         Update multiple documents matching a filter with safety checks.
@@ -751,7 +745,9 @@ class MongoDB:
             OperationFailure: If update fails.
         """
         if not filter:
-            raise ValueError("Empty filter not allowed in update. Use update_all() for mass updates.")
+            raise ValueError(
+                "Empty filter not allowed in update. Use update_all() for mass updates."
+            )
 
         try:
             filter = self._normalize_object_id(filter)
@@ -761,7 +757,7 @@ class MongoDB:
                 upsert=upsert,
                 array_filters=array_filters,
                 session=session,
-                **kwargs
+                **kwargs,
             )
             logger.info(f"Updated {result.modified_count} documents")
             return result.modified_count
@@ -770,12 +766,12 @@ class MongoDB:
             raise
 
     def update_one(
-            self,
-            filter: Dict[str, Any],
-            update_data: Dict[str, Any],
-            upsert: bool = False,
-            session: Optional[ClientSession] = None,
-            **kwargs
+        self,
+        filter: Dict[str, Any],
+        update_data: Dict[str, Any],
+        upsert: bool = False,
+        session: Optional[ClientSession] = None,
+        **kwargs,
     ) -> bool:
         """
         Update a single document matching the filter.
@@ -793,11 +789,7 @@ class MongoDB:
         try:
             filter = self._normalize_object_id(filter)
             result = self.collection.update_one(
-                filter,
-                {"$set": update_data},
-                upsert=upsert,
-                session=session,
-                **kwargs
+                filter, {"$set": update_data}, upsert=upsert, session=session, **kwargs
             )
             return result.modified_count > 0
         except Exception as e:
@@ -805,10 +797,10 @@ class MongoDB:
             raise
 
     def update_or_create(
-            self,
-            filter: Dict[str, Any],
-            data: Dict[str, Any],
-            session: Optional[ClientSession] = None
+        self,
+        filter: Dict[str, Any],
+        data: Dict[str, Any],
+        session: Optional[ClientSession] = None,
     ) -> Tuple[Optional[Dict[str, Any]], bool]:
         """
         Update a document matching the filter, or create it if it doesn't exist (upsert).
@@ -823,15 +815,14 @@ class MongoDB:
         """
         try:
             result = self.collection.update_one(
-                filter,
-                {"$set": data},
-                upsert=True,
-                session=session
+                filter, {"$set": data}, upsert=True, session=session
             )
 
             if result.upserted_id is not None:
                 # Document was created
-                doc = self.collection.find_one({"_id": result.upserted_id}, session=session)
+                doc = self.collection.find_one(
+                    {"_id": result.upserted_id}, session=session
+                )
                 doc = self._replace_id_key(doc)
                 logger.debug(f"Created document with ID: {result.upserted_id}")
                 return doc, True
@@ -846,10 +837,10 @@ class MongoDB:
             raise
 
     def get_or_create(
-            self,
-            filter: Dict[str, Any],
-            data: Optional[Dict[str, Any]] = None,
-            session: Optional[ClientSession] = None
+        self,
+        filter: Dict[str, Any],
+        data: Optional[Dict[str, Any]] = None,
+        session: Optional[ClientSession] = None,
     ) -> Tuple[Optional[Dict[str, Any]], bool]:
         """
         Fetch a document matching the filter, or create it if it doesn't exist.
@@ -875,7 +866,9 @@ class MongoDB:
             if data:
                 new_doc.update(data)
 
-            inserted_id = self.collection.insert_one(new_doc, session=session).inserted_id
+            inserted_id = self.collection.insert_one(
+                new_doc, session=session
+            ).inserted_id
             new_doc["_id"] = str(inserted_id)
             doc = self._replace_id_key(new_doc)
             logger.debug(f"Created document with ID: {inserted_id}")
@@ -886,10 +879,7 @@ class MongoDB:
 
     @retry_on_failure(max_retries=3)
     def delete(
-            self,
-            filter: Dict[str, Any],
-            session: Optional[ClientSession] = None,
-            **kwargs
+        self, filter: Dict[str, Any], session: Optional[ClientSession] = None, **kwargs
     ) -> int:
         """
         Delete multiple documents matching a filter with safety checks.
@@ -907,7 +897,9 @@ class MongoDB:
             OperationFailure: If delete fails.
         """
         if not filter:
-            raise ValueError("Empty filter not allowed in delete. Use drop_collection() to delete all.")
+            raise ValueError(
+                "Empty filter not allowed in delete. Use drop_collection() to delete all."
+            )
 
         try:
             filter = self._normalize_object_id(filter)
@@ -919,10 +911,7 @@ class MongoDB:
             raise
 
     def delete_one(
-            self,
-            filter: Dict[str, Any],
-            session: Optional[ClientSession] = None,
-            **kwargs
+        self, filter: Dict[str, Any], session: Optional[ClientSession] = None, **kwargs
     ) -> bool:
         """
         Delete a single document matching the filter.
@@ -955,7 +944,9 @@ class MongoDB:
             ValueError: If confirm is not True.
         """
         if not confirm:
-            raise ValueError("Must set confirm=True to drop database. This action is irreversible!")
+            raise ValueError(
+                "Must set confirm=True to drop database. This action is irreversible!"
+            )
 
         try:
             db_to_drop = db_name or self.db.name
@@ -966,10 +957,10 @@ class MongoDB:
             raise
 
     def drop_collection(
-            self,
-            collection_name: Optional[str] = None,
-            db_name: Optional[str] = None,
-            confirm: bool = False
+        self,
+        collection_name: Optional[str] = None,
+        db_name: Optional[str] = None,
+        confirm: bool = False,
     ) -> None:
         """
         Drop a collection with confirmation requirement.
@@ -983,7 +974,9 @@ class MongoDB:
             ValueError: If confirm is not True.
         """
         if not confirm:
-            raise ValueError("Must set confirm=True to drop collection. This action is irreversible!")
+            raise ValueError(
+                "Must set confirm=True to drop collection. This action is irreversible!"
+            )
 
         try:
             db = self.client[db_name] if db_name else self.db
@@ -1011,8 +1004,8 @@ class MongoDB:
                 return []
 
             keys = list(doc.keys())
-            if exclude_id and 'id' in keys:
-                keys.remove('id')
+            if exclude_id and "id" in keys:
+                keys.remove("id")
 
             return keys
         except Exception as e:
@@ -1025,17 +1018,14 @@ class MongoDB:
         """
         if doc is None:
             return doc
-        if '_id' in doc:
-            doc['id'] = str(doc.pop('_id'))
+        if "_id" in doc:
+            doc["id"] = str(doc.pop("_id"))
         return doc
-
 
     # ========== BACKUP & EXPORT ==========
 
     def export_to_dict(
-            self,
-            filter: Optional[Dict[str, Any]] = None,
-            limit: int = 0
+        self, filter: Optional[Dict[str, Any]] = None, limit: int = 0
     ) -> List[Dict[str, Any]]:
         """
         Export collection data to list of dictionaries.
@@ -1050,10 +1040,10 @@ class MongoDB:
         return self.filter(filter=filter, show_id=True, limit=limit)
 
     def import_from_dict(
-            self,
-            data: List[Dict[str, Any]],
-            drop_existing: bool = False,
-            session: Optional[ClientSession] = None
+        self,
+        data: List[Dict[str, Any]],
+        drop_existing: bool = False,
+        session: Optional[ClientSession] = None,
     ) -> List[str]:
         """
         Import data from list of dictionaries.
@@ -1092,7 +1082,7 @@ class MongoDB:
                 "storage_size": stats.get("storageSize", 0),
                 "total_index_size": stats.get("totalIndexSize", 0),
                 "num_indexes": stats.get("nindexes", 0),
-                "indexes": [idx["name"] for idx in self.list_indexes()]
+                "indexes": [idx["name"] for idx in self.list_indexes()],
             }
         except Exception as e:
             logger.error(f"Error getting collection stats: {e}")
@@ -1126,6 +1116,7 @@ class MongoDB:
         except Exception as e:
             logger.error(f"Error closing connection: {e}")
 
+
 # ========== USAGE EXAMPLES ==========
 
 if __name__ == "__main__":
@@ -1134,25 +1125,27 @@ if __name__ == "__main__":
     """
 
     # Basic usage with context manager
-    with MongoDB("mydb", "users",connection_str=DEFAULT_CONNECTION_STRING) as db:
+    with MongoDB("mydb", "users", connection_str=DEFAULT_CONNECTION_STRING) as db:
         # Create indexes for performance
         # db.create_index("email", unique=True)
         # db.create_index([("created_at", -1)])
 
         # Insert with retry logic
-        user_id = db.insert({
-            "name": "John Doe",
-            "email": "john@example.com",
-            "age": 30,
-            "created_at": "2024-01-01"
-        })
+        user_id = db.insert(
+            {
+                "name": "John Doe",
+                "email": "john@example.com",
+                "age": 30,
+                "created_at": "2024-01-01",
+            }
+        )
 
         # Query with pagination
         results = db.paginate(
             filter={"age": {"$gte": 18}},
             page=1,
             page_size=20,
-            sort=[("created_at", -1)]
+            sort=[("created_at", -1)],
         )
         print(f"Found {results['total']} users")
 
@@ -1170,4 +1163,3 @@ if __name__ == "__main__":
         print(f"Collection has {collection_stats['count']} documents")
 
         db.delete({"name": "John Doe"})
-
