@@ -1,7 +1,9 @@
 from typing import Optional
+
 from pydantic import BaseModel, Field
-from modules.utils import get_timestamp
+
 from modules.emission_calculator import TransportMode
+from modules.utils import get_timestamp
 
 
 class RouteRequest(BaseModel):
@@ -41,6 +43,10 @@ class CompareRoutesRequest(BaseModel):
     origin: str = Field(..., min_length=2, max_length=200)
     destination: str = Field(..., min_length=2, max_length=200)
     weight_kg: float = Field(..., gt=0, le=1000000)
+    transport_mode: TransportMode = Field(
+        default=TransportMode.LAND,
+        description="Preferred transport mode for shortest route",
+    )
 
 
 class CompareRoutesResponse(BaseModel):

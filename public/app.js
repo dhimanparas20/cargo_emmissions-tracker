@@ -13,6 +13,21 @@ let efficientRouteLayer = null;
 let isLoginMode = true;
 let authToken = localStorage.getItem('authToken');
 
+// Pagination and filter state
+let currentPage = 1;
+let currentOffset = 0;
+let pageLimit = 10;
+let totalItems = 0;
+let hasMore = false;
+
+// Filter state
+let currentFilters = {
+    transport_mode: '',
+    route_type: '',
+    start_date: '',
+    end_date: ''
+};
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     initMap();
@@ -42,6 +57,12 @@ function setupEventListeners() {
     
     // Route form
     document.getElementById('routeForm').addEventListener('submit', handleRouteCalculation);
+    
+    // Filter event listeners
+    document.getElementById('filterTransportMode').addEventListener('change', handleFilterChange);
+    document.getElementById('filterRouteType').addEventListener('change', handleFilterChange);
+    document.getElementById('filterStartDate').addEventListener('change', handleFilterChange);
+    document.getElementById('filterEndDate').addEventListener('change', handleFilterChange);
 }
 
 // Check Authentication Status
@@ -49,6 +70,7 @@ function checkAuthStatus() {
     if (authToken) {
         showApp();
         loadSearchHistory();
+        loadSearchStats();
         updateNavUser();
     } else {
         showAuth();
@@ -161,6 +183,7 @@ async function handleAuth(e) {
                 localStorage.setItem('authToken', authToken);
                 showApp();
                 loadSearchHistory();
+                loadSearchStats();
                 updateNavUser();
             } else if (!isLoginMode) {
                 showSuccess('Registration successful! Please login.');
@@ -270,7 +293,8 @@ async function handleRouteCalculation(e) {
             body: JSON.stringify({
                 origin,
                 destination,
-                weight_kg: weight
+                weight_kg: weight,
+                transport_mode: transportMode
             })
         });
         
@@ -280,6 +304,7 @@ async function handleRouteCalculation(e) {
             displayResults(data);
             displayRoutesOnMap(data);
             loadSearchHistory(); // Refresh history
+            loadSearchStats(); // Refresh stats
         } else {
             alert(data.detail || 'Failed to calculate routes');
         }
@@ -396,19 +421,215 @@ function displayRoutesOnMap(data) {
     map.fitBounds(group.getBounds().pad(0.1));
 }
 
-// Load Search History
+// Handle filter input changes
+function handleFilterChange(e) {
+    const { id, value } = e.target;
+    
+    switch(id) {
+        case 'filterTransportMode':
+            currentFilters.transport_mode = value;
+            break;
+        case 'filterRouteType':
+            currentFilters.route_type = value;
+            break;
+        case 'filterStartDate':
+            currentFilters.start_date = value;
+            break;
+        case 'filterEndDate':
+            currentFilters.end_date = value;
+            break;
+    }
+}
+
+// Apply filters and reload history
+function applyFilters() {
+    // Reset to first page when applying filters
+    currentPage = 1;
+    currentOffset = 0;
+    loadSearchHistory();
+}
+
+// Clear all filters
+function clearFilters() {
+    currentFilters = {
+        transport_mode: '',
+        route_type: '',
+        start_date: '',
+        end_date: ''
+    };
+    
+    // Reset form inputs
+    document.getElementById('filterTransportMode').value = '';
+    document.getElementById('filterRouteType').value = '';
+    document.getElementById('filterStartDate').value = '';
+    document.getElementById('filterEndDate').value = '';
+    
+    // Reset pagination
+    currentPage = 1;
+    currentOffset = 0;
+    
+    loadSearchHistory();
+}
+
+// Change page direction (-1 for previous, 1 for next)
+function changePage(direction) {
+    if (direction === -1 && currentPage > 1) {
+        currentPage--;
+        currentOffset -= pageLimit;
+        loadSearchHistory();
+    } else if (direction === 1 && hasMore) {
+        currentPage++;
+        currentOffset += pageLimit;
+        loadSearchHistory();
+    }
+}
+
+// Load Search History with filters and pagination
 async function loadSearchHistory() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/history/`, {
+        // Build query parameters
+        const params = new URLSearchParams();
+        params.append('limit', pageLimit);
+        params.append('offset', currentOffset);
+        
+        if (currentFilters.transport_mode) {
+            params.append('transport_mode', currentFilters.transport_mode);
+        }
+        if (currentFilters.route_type) {
+            params.append('route_type', currentFilters.route_type);
+        }
+        if (currentFilters.start_date) {
+            params.append('start_date', currentFilters.start_date);
+        }
+        if (currentFilters.end_date) {
+            params.append('end_date', currentFilters.end_date);
+        }
+        
+        const response = await fetch(`${API_BASE_URL}/api/history/?${params.toString()}`, {
             headers: { 'Authorization': `Bearer ${authToken}` }
         });
         
         if (response.ok) {
             const data = await response.json();
+            totalItems = data.total || 0;
+            hasMore = data.has_more || false;
             displaySearchHistory(data);
+            displayPagination();
         }
     } catch (error) {
         console.error('Error loading history:', error);
+    }
+}
+
+// Display pagination controls
+function displayPagination() {
+    const paginationFooter = document.getElementById('paginationFooter');
+    const paginationInfo = document.getElementById('paginationInfo');
+    const prevButton = document.getElementById('prevPage');
+    const nextButton = document.getElementById('nextPage');
+    
+    if (totalItems === 0) {
+        paginationFooter.style.display = 'none';
+        return;
+    }
+    
+    paginationFooter.style.display = 'block';
+    
+    // Calculate range
+    const startItem = currentOffset + 1;
+    const endItem = Math.min(currentOffset + pageLimit, totalItems);
+    
+    paginationInfo.textContent = `Showing ${startItem}-${endItem} of ${totalItems} items`;
+    
+    // Update button states
+    prevButton.disabled = currentPage <= 1;
+    nextButton.disabled = !hasMore;
+}
+
+// Load search statistics
+async function loadSearchStats() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/history/stats/summary`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            displaySearchStats(data);
+        }
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
+}
+
+// Display search statistics
+function displaySearchStats(stats) {
+    const statsSection = document.getElementById('statsSection');
+    
+    if (stats.total_searches === 0) {
+        statsSection.classList.add('hidden');
+        return;
+    }
+    
+    statsSection.classList.remove('hidden');
+    
+    document.getElementById('statTotalSearches').textContent = stats.total_searches || 0;
+    document.getElementById('statTotalEmissions').textContent = Math.round(stats.total_emissions_kg_co2 || 0).toLocaleString();
+    document.getElementById('statAvgDistance').textContent = Math.round(stats.avg_distance_km || 0).toLocaleString();
+    document.getElementById('statMostUsedMode').textContent = stats.most_used_mode || '-';
+}
+
+// Delete a specific history item
+async function deleteHistoryItem(historyId) {
+    if (!confirm('Are you sure you want to delete this history item?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/history/${historyId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            // Reload history and stats
+            loadSearchHistory();
+            loadSearchStats();
+        } else {
+            console.error('Failed to delete history item');
+        }
+    } catch (error) {
+        console.error('Error deleting history item:', error);
+    }
+}
+
+// Clear all history
+async function clearAllHistory() {
+    if (!confirm('Are you sure you want to clear all search history? This action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/history/`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+        
+        if (response.ok) {
+            // Reset pagination
+            currentPage = 1;
+            currentOffset = 0;
+            
+            // Reload history and stats
+            loadSearchHistory();
+            loadSearchStats();
+            
+            showSuccess('All history cleared successfully');
+        } else {
+            console.error('Failed to clear history');
+        }
+    } catch (error) {
+        console.error('Error clearing history:', error);
     }
 }
 
@@ -420,7 +641,7 @@ function displaySearchHistory(data) {
         historyBody.innerHTML = `
             <div class="text-center text-muted py-4">
                 <i class="fas fa-history fa-3x mb-3"></i>
-                <p>No search history yet</p>
+                <p>No search history found</p>
             </div>
         `;
         return;
@@ -444,9 +665,14 @@ function displaySearchHistory(data) {
                             ${date} • ${item.weight_kg} kg • ${item.transport_mode}
                         </small>
                     </div>
-                    <span class="badge ${item.route_type === 'efficient' ? 'bg-success' : 'bg-danger'}">
-                        <i class="fas ${routeTypeIcon} me-1"></i>${item.route_type}
-                    </span>
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge ${item.route_type === 'efficient' ? 'bg-success' : 'bg-danger'}">
+                            <i class="fas ${routeTypeIcon} me-1"></i>${item.route_type}
+                        </span>
+                        <button class="btn btn-sm btn-outline-danger delete-btn" onclick="deleteHistoryItem('${item.id}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="row mt-2 text-center">
                     <div class="col-4">
@@ -472,3 +698,21 @@ function displaySearchHistory(data) {
 // Export functions for global access
 window.logout = logout;
 window.loadSearchHistory = loadSearchHistory;
+window.loadSearchStats = loadSearchStats;
+window.deleteHistoryItem = deleteHistoryItem;
+window.clearAllHistory = clearAllHistory;
+window.applyFilters = applyFilters;
+window.clearFilters = clearFilters;
+window.changePage = changePage;
+
+// Debug: Verify functions are exported
+console.log('Functions exported:', {
+    logout: typeof window.logout,
+    loadSearchHistory: typeof window.loadSearchHistory,
+    loadSearchStats: typeof window.loadSearchStats,
+    deleteHistoryItem: typeof window.deleteHistoryItem,
+    clearAllHistory: typeof window.clearAllHistory,
+    applyFilters: typeof window.applyFilters,
+    clearFilters: typeof window.clearFilters,
+    changePage: typeof window.changePage
+});

@@ -54,6 +54,10 @@
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         }
         
+        .stat-card.info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
         .stat-value {
             font-size: 2rem;
             font-weight: bold;
@@ -105,6 +109,11 @@
             background: #fff;
             padding: 15px;
             border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+        
+        .history-item:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
         }
         
         .navbar-brand {
@@ -119,6 +128,35 @@
         
         .btn-primary:hover {
             background: linear-gradient(135deg, #5568d3 0%, #653e91 100%);
+        }
+        
+        .delete-btn {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        
+        .history-item:hover .delete-btn {
+            opacity: 1;
+        }
+        
+        .filter-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .stats-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .stats-section h5 {
+            margin-bottom: 15px;
+            font-weight: 600;
         }
     </style>
 </head>
@@ -246,18 +284,102 @@
                     </div>
                 </div>
 
+                <!-- Search History Stats -->
+                <div id="statsSection" class="stats-section hidden">
+                    <h5><i class="fas fa-chart-pie me-2"></i>Your Statistics</h5>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="stat-value" id="statTotalSearches">0</div>
+                            <div class="stat-label">Total Searches</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-value" id="statTotalEmissions">0</div>
+                            <div class="stat-label">Total CO2 (kg)</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-value" id="statAvgDistance">0</div>
+                            <div class="stat-label">Avg Distance (km)</div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-value" id="statMostUsedMode">-</div>
+                            <div class="stat-label">Most Used Mode</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search History Filters -->
+                <div class="filter-section">
+                    <h6><i class="fas fa-filter me-2"></i>Filter History</h6>
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label small">Transport Mode</label>
+                            <select class="form-select form-select-sm" id="filterTransportMode">
+                                <option value="">All</option>
+                                <option value="land">Land</option>
+                                <option value="sea">Sea</option>
+                                <option value="air">Air</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label small">Route Type</label>
+                            <select class="form-select form-select-sm" id="filterRouteType">
+                                <option value="">All</option>
+                                <option value="shortest">Shortest</option>
+                                <option value="efficient">Efficient</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label small">Start Date</label>
+                            <input type="date" class="form-control form-control-sm" id="filterStartDate">
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label small">End Date</label>
+                            <input type="date" class="form-control form-control-sm" id="filterEndDate">
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-12">
+                            <button class="btn btn-sm btn-primary" onclick="applyFilters()">
+                                <i class="fas fa-search me-1"></i>Apply Filters
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="clearFilters()">
+                                <i class="fas fa-times me-1"></i>Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Search History -->
                 <div class="card mt-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <span><i class="fas fa-history me-2"></i>Search History</span>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="loadSearchHistory()">
-                            <i class="fas fa-sync-alt"></i> Refresh
-                        </button>
+                        <div>
+                            <button class="btn btn-sm btn-outline-danger me-2" onclick="clearAllHistory()">
+                                <i class="fas fa-trash-alt"></i> Clear All
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="loadSearchHistory()">
+                                <i class="fas fa-sync-alt"></i> Refresh
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body" id="historyBody">
                         <div class="text-center text-muted py-4">
                             <i class="fas fa-history fa-3x mb-3"></i>
                             <p>No search history yet</p>
+                        </div>
+                    </div>
+                    <!-- Pagination -->
+                    <div class="card-footer" id="paginationFooter" style="display: none;">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted small" id="paginationInfo"></span>
+                            <div>
+                                <button class="btn btn-sm btn-outline-primary me-1" id="prevPage" onclick="changePage(-1)" disabled>
+                                    <i class="fas fa-chevron-left"></i> Previous
+                                </button>
+                                <button class="btn btn-sm btn-outline-primary" id="nextPage" onclick="changePage(1)" disabled>
+                                    Next <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

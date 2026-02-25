@@ -91,14 +91,18 @@ def geocode_address(address: str) -> Optional[RoutePoint]:
                 if data.get("features"):
                     feature = data["features"][0]
                     coords = feature["geometry"]["coordinates"]
-                    return RoutePoint(address=address, longitude=coords[0], latitude=coords[1])
+                    return RoutePoint(
+                        address=address, longitude=coords[0], latitude=coords[1]
+                    )
 
         # Fallback to Nominatim (OpenStreetMap) if ORS fails or no API key
         fallback_url = "https://nominatim.openstreetmap.org/search"
         fallback_params = {"q": address, "format": "json", "limit": 1}
         headers = {"User-Agent": "CargoEmissionsTracker/1.0"}
 
-        response = requests.get(fallback_url, params=fallback_params, headers=headers, timeout=10)
+        response = requests.get(
+            fallback_url, params=fallback_params, headers=headers, timeout=10
+        )
         if response.status_code == 200:
             data = response.json()
             if data:
@@ -116,7 +120,9 @@ def geocode_address(address: str) -> Optional[RoutePoint]:
         return None
 
 
-def calculate_route(origin: RoutePoint, destination: RoutePoint, transport_mode: str = "land") -> Optional[RouteResult]:
+def calculate_route(
+    origin: RoutePoint, destination: RoutePoint, transport_mode: str = "land"
+) -> Optional[RouteResult]:
     """
     Calculate route between two points using OpenRouteService.
 
@@ -192,7 +198,9 @@ def calculate_route(origin: RoutePoint, destination: RoutePoint, transport_mode:
         return _calculate_fallback_route(origin, destination, transport_mode)
 
 
-def _calculate_fallback_route(origin: RoutePoint, destination: RoutePoint, transport_mode: str) -> RouteResult:
+def _calculate_fallback_route(
+    origin: RoutePoint, destination: RoutePoint, transport_mode: str
+) -> RouteResult:
     """
     Calculate fallback route using Haversine formula (great circle distance).
     Used when ORS API is unavailable or fails.
@@ -215,11 +223,16 @@ def _calculate_fallback_route(origin: RoutePoint, destination: RoutePoint, trans
     delta_lat = math.radians(destination.latitude - origin.latitude)
     delta_lon = math.radians(destination.longitude - origin.longitude)
 
-    a = math.sin(delta_lat / 2) * math.sin(delta_lat / 2) + math.cos(lat1) * math.cos(lat2) * math.sin(
-        delta_lon / 2
-    ) * math.sin(delta_lon / 2)
+    a = math.sin(delta_lat / 2) * math.sin(delta_lat / 2) + math.cos(lat1) * math.cos(
+        lat2
+    ) * math.sin(delta_lon / 2) * math.sin(delta_lon / 2)
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     distance_km = R * c
+
+    # For sea and air, use straight-line distance (no road network)
+    # For land, add a factor to account for road detours (typically 1.2-1.4x straight-line)
+    if transport_mode == "land":
+        distance_km = distance_km * 1.3  # Road network factor
 
     # Estimate duration based on transport mode
     speeds = {"land": 60, "sea": 25, "air": 800}
@@ -268,7 +281,9 @@ def calculate_shortest_route(
     destination = geocode_address(destination_address)
 
     if not origin or not destination:
-        logger.error(f"Failed to geocode addresses: {origin_address} -> {destination_address}")
+        logger.error(
+            f"Failed to geocode addresses: {origin_address} -> {destination_address}"
+        )
         return None
 
     # Calculate route
@@ -276,7 +291,8 @@ def calculate_shortest_route(
 
     if route:
         logger.info(
-            f"Shortest route calculated: {route.distance_km}km, " f"{route.duration_minutes}min via {transport_mode}"
+            f"Shortest route calculated: {route.distance_km}km, "
+            f"{route.duration_minutes}min via {transport_mode}"
         )
 
     return route
