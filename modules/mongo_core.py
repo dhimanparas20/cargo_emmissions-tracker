@@ -18,9 +18,8 @@ import os
 import random
 import string
 import time
-from contextlib import contextmanager
 from functools import wraps
-from typing import Any, Dict, List, Optional, Union, Tuple, Generator
+from typing import Any, Dict, List, Optional, Union, Tuple
 from uuid import uuid4
 
 from bson import ObjectId
@@ -68,9 +67,7 @@ def retry_on_failure(max_retries: int = 3, delay: float = 1.0):
                     if attempt == max_retries - 1:
                         logger.error(f"Max retries reached for {func.__name__}: {e}")
                         raise
-                    logger.warning(
-                        f"Retry {attempt + 1}/{max_retries} for {func.__name__}: {e}"
-                    )
+                    logger.warning(f"Retry {attempt + 1}/{max_retries} for {func.__name__}: {e}")
                     time.sleep(delay * (attempt + 1))
             return None
 
@@ -139,9 +136,7 @@ class MongoDB:
 
             # Test connection
             self.client.admin.command("ping")
-            logger.info(
-                f"Successfully connected to MongoDB: {db_name}.{collection_name}"
-            )
+            logger.info(f"Successfully connected to MongoDB: {db_name}.{collection_name}")
 
             self.db: Database = self.client[db_name]
             self.collection: Collection = self.db[collection_name]
@@ -149,9 +144,7 @@ class MongoDB:
 
         except (ConnectionFailure, ServerSelectionTimeoutError) as e:
             logger.error(f"Failed to connect to MongoDB: {e}")
-            logger.error(
-                "Please ensure MongoDB is running. You can start it with: docker compose up -d"
-            )
+            logger.error("Please ensure MongoDB is running. You can start it with: docker compose up -d")
             raise SystemExit(1)
         except Exception as e:
             logger.error(f"Unexpected error during MongoDB initialization: {e}")
@@ -322,9 +315,7 @@ class MongoDB:
         return self.collection
 
     @retry_on_failure(max_retries=3)
-    def insert(
-        self, data: Dict[str, Any], session: Optional[ClientSession] = None, **kwargs
-    ) -> str:
+    def insert(self, data: Dict[str, Any], session: Optional[ClientSession] = None, **kwargs) -> str:
         """
         Insert a single document with retry logic.
 
@@ -373,9 +364,7 @@ class MongoDB:
         """
         try:
             # Atomic upsert with $setOnInsert to avoid race condition
-            result = self.collection.update_one(
-                filter, {"$setOnInsert": data}, upsert=True, session=session
-            )
+            result = self.collection.update_one(filter, {"$setOnInsert": data}, upsert=True, session=session)
 
             if result.upserted_id:
                 logger.debug(f"Inserted unique document with ID: {result.upserted_id}")
@@ -415,9 +404,7 @@ class MongoDB:
                 logger.warning("insert_many called with empty data list")
                 return []
 
-            result = self.collection.insert_many(
-                data, ordered=ordered, session=session, **kwargs
-            )
+            result = self.collection.insert_many(data, ordered=ordered, session=session, **kwargs)
             logger.info(f"Inserted {len(result.inserted_ids)} documents")
             return [str(_id) for _id in result.inserted_ids]
         except Exception as e:
@@ -451,9 +438,7 @@ class MongoDB:
             >>> db.bulk_write(ops)
         """
         try:
-            result = self.collection.bulk_write(
-                operations, ordered=ordered, session=session
-            )
+            result = self.collection.bulk_write(operations, ordered=ordered, session=session)
             stats = {
                 "inserted": result.inserted_count,
                 "modified": result.modified_count,
@@ -506,9 +491,7 @@ class MongoDB:
             if projection is None:
                 projection = None if show_id else {"_id": 0}
 
-            cursor = self.collection.find(
-                filter or {}, projection, session=session, **kwargs
-            )
+            cursor = self.collection.find(filter or {}, projection, session=session, **kwargs)
 
             if sort:
                 cursor = cursor.sort(sort)
@@ -613,9 +596,7 @@ class MongoDB:
             if projection is None:
                 projection = None if show_id else {"_id": 0}
 
-            doc = self.collection.find_one(
-                filter or {}, projection, session=session, **kwargs
-            )
+            doc = self.collection.find_one(filter or {}, projection, session=session, **kwargs)
 
             if doc and show_id and "_id" in doc:
                 doc = self._replace_id_key(doc)
@@ -685,17 +666,13 @@ class MongoDB:
             int: Number of matching documents.
         """
         try:
-            count = self.collection.count_documents(
-                filter or {}, session=session, **kwargs
-            )
+            count = self.collection.count_documents(filter or {}, session=session, **kwargs)
             return count
         except Exception as e:
             logger.error(f"Error counting documents: {e}")
             raise
 
-    def exists(
-        self, filter: Dict[str, Any], session: Optional[ClientSession] = None
-    ) -> bool:
+    def exists(self, filter: Dict[str, Any], session: Optional[ClientSession] = None) -> bool:
         """
         Check if any document matches the filter.
         More efficient than count() > 0.
@@ -708,10 +685,7 @@ class MongoDB:
             bool: True if at least one document exists, False otherwise.
         """
         try:
-            return (
-                self.collection.find_one(filter, {"_id": 1}, session=session)
-                is not None
-            )
+            return self.collection.find_one(filter, {"_id": 1}, session=session) is not None
         except Exception as e:
             logger.error(f"Error checking existence: {e}")
             raise
@@ -745,9 +719,7 @@ class MongoDB:
             OperationFailure: If update fails.
         """
         if not filter:
-            raise ValueError(
-                "Empty filter not allowed in update. Use update_all() for mass updates."
-            )
+            raise ValueError("Empty filter not allowed in update. Use update_all() for mass updates.")
 
         try:
             filter = self._normalize_object_id(filter)
@@ -788,9 +760,7 @@ class MongoDB:
         """
         try:
             filter = self._normalize_object_id(filter)
-            result = self.collection.update_one(
-                filter, {"$set": update_data}, upsert=upsert, session=session, **kwargs
-            )
+            result = self.collection.update_one(filter, {"$set": update_data}, upsert=upsert, session=session, **kwargs)
             return result.modified_count > 0
         except Exception as e:
             logger.error(f"Error in update_one: {e}")
@@ -814,15 +784,11 @@ class MongoDB:
             Tuple[Optional[Dict[str, Any]], bool]: (The document, True if created, False if updated)
         """
         try:
-            result = self.collection.update_one(
-                filter, {"$set": data}, upsert=True, session=session
-            )
+            result = self.collection.update_one(filter, {"$set": data}, upsert=True, session=session)
 
             if result.upserted_id is not None:
                 # Document was created
-                doc = self.collection.find_one(
-                    {"_id": result.upserted_id}, session=session
-                )
+                doc = self.collection.find_one({"_id": result.upserted_id}, session=session)
                 doc = self._replace_id_key(doc)
                 logger.debug(f"Created document with ID: {result.upserted_id}")
                 return doc, True
@@ -866,9 +832,7 @@ class MongoDB:
             if data:
                 new_doc.update(data)
 
-            inserted_id = self.collection.insert_one(
-                new_doc, session=session
-            ).inserted_id
+            inserted_id = self.collection.insert_one(new_doc, session=session).inserted_id
             new_doc["_id"] = str(inserted_id)
             doc = self._replace_id_key(new_doc)
             logger.debug(f"Created document with ID: {inserted_id}")
@@ -878,9 +842,7 @@ class MongoDB:
             raise
 
     @retry_on_failure(max_retries=3)
-    def delete(
-        self, filter: Dict[str, Any], session: Optional[ClientSession] = None, **kwargs
-    ) -> int:
+    def delete(self, filter: Dict[str, Any], session: Optional[ClientSession] = None, **kwargs) -> int:
         """
         Delete multiple documents matching a filter with safety checks.
 
@@ -897,9 +859,7 @@ class MongoDB:
             OperationFailure: If delete fails.
         """
         if not filter:
-            raise ValueError(
-                "Empty filter not allowed in delete. Use drop_collection() to delete all."
-            )
+            raise ValueError("Empty filter not allowed in delete. Use drop_collection() to delete all.")
 
         try:
             filter = self._normalize_object_id(filter)
@@ -910,9 +870,7 @@ class MongoDB:
             logger.error(f"Error deleting documents: {e}")
             raise
 
-    def delete_one(
-        self, filter: Dict[str, Any], session: Optional[ClientSession] = None, **kwargs
-    ) -> bool:
+    def delete_one(self, filter: Dict[str, Any], session: Optional[ClientSession] = None, **kwargs) -> bool:
         """
         Delete a single document matching the filter.
 
@@ -944,9 +902,7 @@ class MongoDB:
             ValueError: If confirm is not True.
         """
         if not confirm:
-            raise ValueError(
-                "Must set confirm=True to drop database. This action is irreversible!"
-            )
+            raise ValueError("Must set confirm=True to drop database. This action is irreversible!")
 
         try:
             db_to_drop = db_name or self.db.name
@@ -974,9 +930,7 @@ class MongoDB:
             ValueError: If confirm is not True.
         """
         if not confirm:
-            raise ValueError(
-                "Must set confirm=True to drop collection. This action is irreversible!"
-            )
+            raise ValueError("Must set confirm=True to drop collection. This action is irreversible!")
 
         try:
             db = self.client[db_name] if db_name else self.db
@@ -1024,9 +978,7 @@ class MongoDB:
 
     # ========== BACKUP & EXPORT ==========
 
-    def export_to_dict(
-        self, filter: Optional[Dict[str, Any]] = None, limit: int = 0
-    ) -> List[Dict[str, Any]]:
+    def export_to_dict(self, filter: Optional[Dict[str, Any]] = None, limit: int = 0) -> List[Dict[str, Any]]:
         """
         Export collection data to list of dictionaries.
 

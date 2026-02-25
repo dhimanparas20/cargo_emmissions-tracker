@@ -1,6 +1,5 @@
 import logging
 import sys
-from typing import Optional
 
 
 def get_logger(name: str = "APP", level: int = logging.DEBUG) -> logging.Logger:

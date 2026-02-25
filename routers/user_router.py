@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, status, HTTPException
 from fastapi.responses import JSONResponse
-from modules.entity import user_db
+
 from models import user_model
+from modules.entity import user_db
 from modules.jwt_util import require_token
 from modules.logger import get_logger
 

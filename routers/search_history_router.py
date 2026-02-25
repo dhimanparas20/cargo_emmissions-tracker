@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, status, HTTPException, Query
-from fastapi.responses import JSONResponse
 from typing import Optional
 
+from fastapi import APIRouter, Depends, status, HTTPException, Query
+from fastapi.responses import JSONResponse
+
+from models.route_model import PaginatedSearchHistory
+from modules.entity import search_history_db
 from modules.jwt_util import require_token
 from modules.logger import get_logger
-from modules.entity import search_history_db
-from models.route_model import PaginatedSearchHistory
 
 search_history_router = APIRouter()
 logger = get_logger("SEARCH_HISTORY_ROUTER")
@@ -20,15 +21,9 @@ logger = get_logger("SEARCH_HISTORY_ROUTER")
 )
 async def get_search_history(
     transport_mode: Optional[str] = Query(None, description="Filter by transport mode"),
-    route_type: Optional[str] = Query(
-        None, description="Filter by route type (shortest/efficient)"
-    ),
-    start_date: Optional[float] = Query(
-        None, description="Filter by start date (timestamp)"
-    ),
-    end_date: Optional[float] = Query(
-        None, description="Filter by end date (timestamp)"
-    ),
+    route_type: Optional[str] = Query(None, description="Filter by route type (shortest/efficient)"),
+    start_date: Optional[float] = Query(None, description="Filter by start date (timestamp)"),
+    end_date: Optional[float] = Query(None, description="Filter by end date (timestamp)"),
     limit: int = Query(20, ge=1, le=100, description="Number of items per page"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     user=Depends(require_token),
@@ -106,9 +101,7 @@ async def get_search_history_item(history_id: str, user=Depends(require_token)):
 
         # Check ownership
         if item.get("user_id") != user_id:
-            raise HTTPException(
-                status_code=403, detail="Not authorized to view this item"
-            )
+            raise HTTPException(status_code=403, detail="Not authorized to view this item")
 
         return JSONResponse(item)
 
@@ -138,17 +131,13 @@ async def delete_search_history_item(history_id: str, user=Depends(require_token
 
         # Check ownership
         if item.get("user_id") != user_id:
-            raise HTTPException(
-                status_code=403, detail="Not authorized to delete this item"
-            )
+            raise HTTPException(status_code=403, detail="Not authorized to delete this item")
 
         # Delete item
         success = search_history_db.delete_one(filter={"_id": history_id})
 
         if success:
-            return JSONResponse(
-                {"msg": "Search history item deleted successfully", "id": history_id}
-            )
+            return JSONResponse({"msg": "Search history item deleted successfully", "id": history_id})
         else:
             raise HTTPException(status_code=400, detail="Failed to delete item")
 
@@ -173,9 +162,7 @@ async def clear_search_history(user=Depends(require_token)):
         # Delete all items for user
         result = search_history_db.delete(filter={"user_id": user_id})
 
-        return JSONResponse(
-            {"msg": "Search history cleared successfully", "deleted_count": result}
-        )
+        return JSONResponse({"msg": "Search history cleared successfully", "deleted_count": result})
 
     except Exception as e:
         logger.error(f"Error clearing search history: {e}")
@@ -210,27 +197,21 @@ async def get_search_stats(user=Depends(require_token)):
         # Calculate statistics
         total_searches = len(results)
         total_emissions = sum(item.get("emissions_kg_co2", 0) for item in results)
-        avg_distance = (
-            sum(item.get("distance_km", 0) for item in results) / total_searches
-        )
+        avg_distance = sum(item.get("distance_km", 0) for item in results) / total_searches
 
         # Most used transport mode
         mode_counts = {}
         for item in results:
             mode = item.get("transport_mode", "unknown")
             mode_counts[mode] = mode_counts.get(mode, 0) + 1
-        most_used_mode = (
-            max(mode_counts.items(), key=lambda x: x[1])[0] if mode_counts else None
-        )
+        most_used_mode = max(mode_counts.items(), key=lambda x: x[1])[0] if mode_counts else None
 
         # Most common route
         route_counts = {}
         for item in results:
             route_key = f"{item.get('origin')} -> {item.get('destination')}"
             route_counts[route_key] = route_counts.get(route_key, 0) + 1
-        most_common_route = (
-            max(route_counts.items(), key=lambda x: x[1])[0] if route_counts else None
-        )
+        most_common_route = max(route_counts.items(), key=lambda x: x[1])[0] if route_counts else None
 
         return JSONResponse(
             {

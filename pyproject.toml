@@ -16,4 +16,5 @@ dependencies = [
     "uuid>=1.30",
     "uvicorn>=0.30.0",
     "fastapi[standard]>=0.131.0",
+    "colorlog>=6.10.1",
 ]

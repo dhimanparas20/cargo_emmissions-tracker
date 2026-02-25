@@ -14,8 +14,9 @@ Note: You can get a free API key at https://openrouteservice.org/dev/#/signup
 """
 
 import os
-from typing import List, Dict, Tuple, Optional
 from dataclasses import dataclass
+from typing import List, Optional
+
 import requests
 from dotenv import load_dotenv
 
@@ -33,14 +34,6 @@ ORS_PROFILES = {
     "land": "driving-car",  # Car/truck routing
     "sea": "driving-car",  # Fallback to land (ORS doesn't support sea)
     "air": "driving-car",  # Fallback to land (ORS doesn't support air)
-}
-
-# Default coordinates for fallback (in case geocoding fails)
-DEFAULT_COORDS = {
-    "london": [-0.1276, 51.5074],
-    "new_york": [-74.0060, 40.7128],
-    "singapore": [103.8198, 1.3521],
-    "mumbai": [72.8777, 19.0760],
 }
 
 
@@ -98,18 +91,14 @@ def geocode_address(address: str) -> Optional[RoutePoint]:
                 if data.get("features"):
                     feature = data["features"][0]
                     coords = feature["geometry"]["coordinates"]
-                    return RoutePoint(
-                        address=address, longitude=coords[0], latitude=coords[1]
-                    )
+                    return RoutePoint(address=address, longitude=coords[0], latitude=coords[1])
 
         # Fallback to Nominatim (OpenStreetMap) if ORS fails or no API key
         fallback_url = "https://nominatim.openstreetmap.org/search"
         fallback_params = {"q": address, "format": "json", "limit": 1}
         headers = {"User-Agent": "CargoEmissionsTracker/1.0"}
 
-        response = requests.get(
-            fallback_url, params=fallback_params, headers=headers, timeout=10
-        )
+        response = requests.get(fallback_url, params=fallback_params, headers=headers, timeout=10)
         if response.status_code == 200:
             data = response.json()
             if data:
@@ -127,9 +116,7 @@ def geocode_address(address: str) -> Optional[RoutePoint]:
         return None
 
 
-def calculate_route(
-    origin: RoutePoint, destination: RoutePoint, transport_mode: str = "land"
-) -> Optional[RouteResult]:
+def calculate_route(origin: RoutePoint, destination: RoutePoint, transport_mode: str = "land") -> Optional[RouteResult]:
     """
     Calculate route between two points using OpenRouteService.
 
@@ -205,9 +192,7 @@ def calculate_route(
         return _calculate_fallback_route(origin, destination, transport_mode)
 
 
-def _calculate_fallback_route(
-    origin: RoutePoint, destination: RoutePoint, transport_mode: str
-) -> RouteResult:
+def _calculate_fallback_route(origin: RoutePoint, destination: RoutePoint, transport_mode: str) -> RouteResult:
     """
     Calculate fallback route using Haversine formula (great circle distance).
     Used when ORS API is unavailable or fails.
@@ -230,9 +215,9 @@ def _calculate_fallback_route(
     delta_lat = math.radians(destination.latitude - origin.latitude)
     delta_lon = math.radians(destination.longitude - origin.longitude)
 
-    a = math.sin(delta_lat / 2) * math.sin(delta_lat / 2) + math.cos(lat1) * math.cos(
-        lat2
-    ) * math.sin(delta_lon / 2) * math.sin(delta_lon / 2)
+    a = math.sin(delta_lat / 2) * math.sin(delta_lat / 2) + math.cos(lat1) * math.cos(lat2) * math.sin(
+        delta_lon / 2
+    ) * math.sin(delta_lon / 2)
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     distance_km = R * c
 
@@ -283,9 +268,7 @@ def calculate_shortest_route(
     destination = geocode_address(destination_address)
 
     if not origin or not destination:
-        logger.error(
-            f"Failed to geocode addresses: {origin_address} -> {destination_address}"
-        )
+        logger.error(f"Failed to geocode addresses: {origin_address} -> {destination_address}")
         return None
 
     # Calculate route
@@ -293,8 +276,7 @@ def calculate_shortest_route(
 
     if route:
         logger.info(
-            f"Shortest route calculated: {route.distance_km}km, "
-            f"{route.duration_minutes}min via {transport_mode}"
+            f"Shortest route calculated: {route.distance_km}km, " f"{route.duration_minutes}min via {transport_mode}"
         )
 
     return route

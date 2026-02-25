@@ -1,4 +1,5 @@
 import re
+
 from fastapi import APIRouter, Depends, status, Header, HTTPException
 from fastapi.responses import JSONResponse
 
@@ -82,9 +83,7 @@ async def register(user: user_model.CreateUserInput):
         # Prepare user data
         data = user.model_dump(exclude_unset=True)
         data["password"] = user_db.hashit(user.password)
-        data["jwt_token_string"] = user_db.gen_string(
-            length=32
-        )  # For token invalidation
+        data["jwt_token_string"] = user_db.gen_string(length=32)  # For token invalidation
 
         # Create user document
         created_user = user_model.CreateUser(**data).model_dump()
@@ -107,9 +106,7 @@ async def register(user: user_model.CreateUserInput):
         raise
     except Exception as e:
         logger.error(f"Registration error: {e}")
-        raise HTTPException(
-            status_code=500, detail="Registration failed. Please try again."
-        )
+        raise HTTPException(status_code=500, detail="Registration failed. Please try again.")
 
 
 @auth_router.post(
@@ -144,9 +141,7 @@ async def login(login_data: user_model.LoginUser):
 
         # Verify password
         stored_password = user.get("password")
-        if not stored_password or not user_db.verify_hash(
-            login_data.password, stored_password
-        ):
+        if not stored_password or not user_db.verify_hash(login_data.password, stored_password):
             logger.warning(f"Failed login attempt for user: {login_data.email}")
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
@@ -187,9 +182,7 @@ async def login(login_data: user_model.LoginUser):
     response_description="Password changed successfully",
     response_class=JSONResponse,
 )
-async def change_password(
-    data: user_model.ChangePassword, current_user: dict = Depends(require_token)
-):
+async def change_password(data: user_model.ChangePassword, current_user: dict = Depends(require_token)):
     """
     Change the authenticated user's password.
 
@@ -206,9 +199,7 @@ async def change_password(
     try:
         # Verify current password
         stored_password = current_user.get("password")
-        if not stored_password or not user_db.verify_hash(
-            data.current_password, stored_password
-        ):
+        if not stored_password or not user_db.verify_hash(data.current_password, stored_password):
             raise HTTPException(status_code=400, detail="Current password is incorrect")
 
         # Validate new password strength
