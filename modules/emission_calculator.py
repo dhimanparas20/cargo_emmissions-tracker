@@ -16,9 +16,10 @@ Sources:
 - These are simplified factors for demonstration purposes
 """
 
-from enum import Enum
-from typing import Dict, Tuple, List
 from dataclasses import dataclass
+from enum import Enum
+from typing import Dict, Tuple
+
 from modules.logger import get_logger
 
 logger = get_logger("EMISSION_CALCULATOR")
@@ -33,7 +34,6 @@ class TransportMode(str, Enum):
 
 
 # Emission factors in kg CO2 per ton-kilometer
-# Sources: Based on typical industry averages
 EMISSION_FACTORS = {
     TransportMode.LAND: 0.062,  # Truck transportation
     TransportMode.SEA: 0.016,  # Container ship
@@ -68,9 +68,7 @@ class EmissionResult:
     estimated_cost_relative: float
 
 
-def calculate_emissions(
-    distance_km: float, weight_kg: float, transport_mode: TransportMode
-) -> EmissionResult:
+def calculate_emissions(distance_km: float, weight_kg: float, transport_mode: TransportMode) -> EmissionResult:
     """
     Calculate carbon emissions for cargo transportation.
 
@@ -88,9 +86,7 @@ def calculate_emissions(
     weight_tons = weight_kg / 1000
 
     # Get emission factor for the transport mode
-    emission_factor = EMISSION_FACTORS.get(
-        transport_mode, EMISSION_FACTORS[TransportMode.LAND]
-    )
+    emission_factor = EMISSION_FACTORS.get(transport_mode, EMISSION_FACTORS[TransportMode.LAND])
 
     # Calculate emissions in kg CO2
     emissions_kg = distance_km * weight_tons * emission_factor
@@ -124,9 +120,7 @@ def calculate_emissions(
     return result
 
 
-def calculate_emissions_for_all_modes(
-    distance_km: float, weight_kg: float
-) -> Dict[TransportMode, EmissionResult]:
+def calculate_emissions_for_all_modes(distance_km: float, weight_kg: float) -> Dict[TransportMode, EmissionResult]:
     """
     Calculate emissions for all transport modes.
 
@@ -143,9 +137,7 @@ def calculate_emissions_for_all_modes(
     return results
 
 
-def get_most_efficient_mode(
-    distance_km: float, weight_kg: float
-) -> Tuple[TransportMode, EmissionResult]:
+def get_most_efficient_mode(distance_km: float, weight_kg: float) -> Tuple[TransportMode, EmissionResult]:
     """
     Determine the most carbon-efficient transport mode.
 
@@ -177,13 +169,7 @@ def get_emission_factor_info() -> Dict[str, Dict[str, float]]:
         Dict with emission factors, speeds, and cost factors
     """
     return {
-        "emission_factors_kg_co2_per_ton_km": {
-            mode.value: factor for mode, factor in EMISSION_FACTORS.items()
-        },
-        "average_speeds_km_per_hour": {
-            mode.value: speed for mode, speed in AVERAGE_SPEEDS.items()
-        },
-        "cost_factors_relative": {
-            mode.value: cost for mode, cost in COST_FACTORS.items()
-        },
+        "emission_factors_kg_co2_per_ton_km": {mode.value: factor for mode, factor in EMISSION_FACTORS.items()},
+        "average_speeds_km_per_hour": {mode.value: speed for mode, speed in AVERAGE_SPEEDS.items()},
+        "cost_factors_relative": {mode.value: cost for mode, cost in COST_FACTORS.items()},
     }
