@@ -54,4 +54,4 @@ async def root():
     """Serve the main frontend page."""
     from fastapi.responses import FileResponse
 
-    return FileResponse("public/index.html")
+    return FileResponse("static/index.html")
