@@ -29,7 +29,7 @@ app.add_middleware(
 )
 
 # Static files for frontend
-app.mount("/static", StaticFiles(directory="public"), name="static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Include routers
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
