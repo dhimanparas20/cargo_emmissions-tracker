@@ -158,8 +158,7 @@ urllib3==2.6.3
     # via
     #   requests
     #   sentry-sdk
-uuid==1.30
-    # via cargo-emmissions-tracker (pyproject.toml)
+
 uvicorn==0.41.0
     # via
     #   cargo-emmissions-tracker (pyproject.toml)
