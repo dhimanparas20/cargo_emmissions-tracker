@@ -1,5 +1,8 @@
 .venv
 .idea
 .env
+venv
+.env
+env
 __pycache__
 mongodb_data
