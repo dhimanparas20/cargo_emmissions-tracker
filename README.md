@@ -31,7 +31,7 @@ A FastAPI-based REST API for calculating carbon emissions and optimal routes for
 
 2. **Install dependencies**
    ```bash
-   uv pip install -r requirements.txt
+   uv sync
    ```
 
 3. **Set up environment variables**
@@ -53,7 +53,11 @@ A FastAPI-based REST API for calculating carbon emissions and optimal routes for
 
 5. **Run the server**
    ```bash
-   uv run fastapi dev app.py --port 5001
+   uv run fastapi dev app.py --port 5000
+
+   or
+
+   uv run uvicorn app:app --port 5000
    ```
 
 ## API Endpoints
